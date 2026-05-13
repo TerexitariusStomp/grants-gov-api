@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+
+# Environment variables
+.env
+
+# Logs
+*.log
+server.log
+
+# Database
+*.sqlite
+database/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test files
+test_*.py
+test-output/
+.coverage
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Editor
+*.swp
+*.swo
+
+# Node
+node_modules/
+
+# OS X
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# Database
+*.db
