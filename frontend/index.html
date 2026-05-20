@@ -62,6 +62,13 @@
                             <option value="close_date_desc">Closing late (desc)</option>
                             <option value="relevance">Relevance</option>
                         </select>
+                        <button type="button" id="ai-sort-btn" class="ai-sort-btn">
+                            🤖 AI Sort by Relevance
+                        </button>
+                        <div id="ai-sort-progress" class="ai-sort-progress hidden">
+                            <span class="spinner"></span>
+                            <span id="ai-sort-status">Loading AI model...</span>
+                        </div>
                     </div>
                 </div>
                 <div id="opportunities-list" class="opportunities-list"></div>
@@ -303,5 +310,6 @@
     </footer>
 
     <script src="script.js?v=2"></script>
+    <script type="module" src="ai-sorter.js"></script>
 </body>
 </html>

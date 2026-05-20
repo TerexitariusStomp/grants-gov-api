@@ -38,6 +38,11 @@ def profile_page():
     return send_from_directory(STATIC_DIR, 'profile.html')
 
 
+@app.route('/ecovillage-matcher/')
+def ecovillage_index():
+    return send_from_directory(STATIC_DIR, 'ecovillage-matcher/index.html')
+
+
 @app.route('/<path:path>')
 def frontend_files(path):
     return send_from_directory(STATIC_DIR, path)

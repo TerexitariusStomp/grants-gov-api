@@ -39,7 +39,19 @@ document.addEventListener('DOMContentLoaded', function() {
     // AI Autofill button click handler
     const aiAutofillBtn = document.getElementById('ai-autofill-btn');
     if (aiAutofillBtn) {
-        aiAutofillBtn.addEventListener('click', () => window.aiAutofillApplication());
+        aiAutofillBtn.addEventListener('click', () => {
+            if (window.WebLLMHelper) {
+                window.aiAutofillApplication();
+            } else {
+                alert('WebLLM not loaded. Please refresh and wait for AI model to load.');
+            }
+        });
+    }
+
+    // AI Sort button click handler
+    const aiSortBtn = document.getElementById('ai-sort-btn');
+    if (aiSortBtn) {
+        aiSortBtn.addEventListener('click', handleAISort);
     }
 
     if (projectInfoForm) projectInfoForm.addEventListener('submit', aiGenerateApplication);
@@ -87,6 +99,97 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error fetching opportunities:', error);
             opportunitiesList.innerHTML = `<div class="error">Error fetching opportunities.</div>`;
         }
+    }
+
+    // AI Sort using WebLLM - runs entirely in browser
+    async function handleAISort() {
+        if (!window.WebLLMHelper) {
+            alert('WebLLM not available. Please refresh the page.');
+            return;
+        }
+
+        if (!opportunities.length) {
+            alert('Please search for grants first.');
+            return;
+        }
+
+        // Get user profile for context
+        const profile = loadProfile();
+        const userProfile = profile ? 
+            `${profile.organization_type || 'Organization'} - ${profile.organization_mission || ''}. Expertise: ${profile.expertise_areas || ''}` : 
+            null;
+
+        // Show progress UI
+        const progress = document.getElementById('ai-sort-progress');
+        const status = document.getElementById('ai-sort-status');
+        const btn = document.getElementById('ai-sort-btn');
+        progress.classList.remove('hidden');
+        btn.disabled = true;
+        btn.textContent = '🤖 AI Sorting...';
+
+        try {
+            status.textContent = 'Initializing AI model (first time may take 30-60s)...';
+            
+            // Sort with WebLLM
+            const sorted = await window.WebLLMHelper.aiSortGrants(opportunities, userProfile);
+            
+            // Update opportunities with scores
+            opportunities = sorted;
+            
+            // Re-render with scores displayed
+            renderOpportunitiesWithScores();
+            
+            status.textContent = '✅ AI sorting complete!';
+            setTimeout(() => {
+                progress.classList.add('hidden');
+            }, 2000);
+            
+            btn.disabled = false;
+            btn.textContent = '🤖 AI Sort by Relevance';
+            
+        } catch (error) {
+            console.error('AI sort failed:', error);
+            alert('AI sorting failed: ' + error.message + '. You can still use manual sorting.');
+            progress.classList.add('hidden');
+            btn.disabled = false;
+            btn.textContent = '🤖 AI Sort by Relevance';
+        }
+    }
+
+    function renderOpportunitiesWithScores() {
+        if (!opportunities.length) {
+            opportunitiesList.innerHTML = `<div class="no-opportunities"><h3>No opportunities found</h3><p>Try adjusting your search</p></div>`;
+            return;
+        }
+
+        opportunitiesList.innerHTML = opportunities.map(o => {
+            const score = o.ai_score || 50;
+            const scoreColor = score >= 80 ? '#22c55e' : score >= 60 ? '#eab308' : score >= 40 ? '#f97316' : '#ef4444';
+            const scoreBadge = `<span style="display:inline-flex;align-items:center;justify-content:center;width:2rem;height:2rem;border-radius:50%;background:${scoreColor};color:white;font-weight:700;font-size:0.875rem;margin-left:0.5rem;" title="${o.ai_reason || 'Score: ' + score}">${score}</span>`;
+            
+            return `
+            <div class="opportunity-card" data-id="${o.opportunity_number || o.id}">
+                <h3 class="opportunity-title">${escapeHtml(o.title)}${scoreBadge}</h3>
+                ${o.ai_reason ? `<p class="ai-score-reason">💡 ${escapeHtml(o.ai_reason)}</p>` : ''}
+                <div class="opportunity-meta">
+                    <div class="meta-item">🏛️ ${escapeHtml(o.agency)}</div>
+                    <div class="meta-item">📁 ${escapeHtml(o.category || 'General')}</div>
+                    <div class="meta-item">📅 Closes: ${formatDate(o.close_date)}</div>
+                    <div class="meta-item">💰 Ceiling: ${escapeHtml(o.award_ceiling || 'Not specified')}</div>
+                </div>
+                <p class="opportunity-description">${escapeHtml(truncateText(o.description || 'No description available', 200))}</p>
+                <div class="opportunity-actions">
+                    <button class="view-details" data-id="${o.opportunity_number || o.id}">View Details</button>
+                </div>
+            </div>
+        `}).join('');
+
+        // Attach event listeners
+        document.querySelectorAll('.view-details').forEach(btn => {
+            btn.addEventListener('click', function() {
+                showOpportunityDetails(this.getAttribute('data-id'));
+            });
+        });
     }
 
     function renderOpportunities() {
@@ -343,96 +446,73 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // ── AI Autofill Application ──
+    // ── AI Autofill Application (WebLLM — browser only, no API key) ──
     window.aiAutofillApplication = async function() {
         if (!selectedOpportunity) {
             alert('Please select an opportunity first.');
             return;
         }
 
-        const aiBtn = document.getElementById('ai-autofill-btn');
+        if (!window.WebLLMHelper || !window.WebLLMHelper.isReady()) {
+            alert('WebLLM is still loading. Please wait a moment and try again.');
+            return;
+        }
+
+        const aiBtn   = document.getElementById('ai-autofill-btn');
         const aiStatus = document.getElementById('ai-autofill-status');
-        
-        const profile = loadProfile();
+        const profile  = loadProfile();
+
         if (!profile || !profile.project_description) {
             showAiStatus('⚠️ No profile found. Results will be generic — save your profile first for personalized applications.', 'warning');
         } else {
             showAiStatus('🤖 Reading your profile and opportunity details...', 'info');
         }
 
-        const projectInfo = {
-            organization_name: (profile && profile.organization_name) || document.getElementById('organization_name').value || '',
-            organization_type: (profile && profile.organization_type) || document.getElementById('org_type')?.value || 'nonprofit',
-            organization_mission: (profile && profile.organization_mission) || document.getElementById('org_mission')?.value || '',
-            project_description: (profile && profile.project_description) || document.getElementById('project_description')?.value || '',
-            target_budget: (profile && profile.target_budget) || document.getElementById('target_budget')?.value || '',
-            project_duration: (profile && profile.project_duration) || document.getElementById('project_duration')?.value || '',
-            target_population: (profile && profile.target_population) || document.getElementById('target_population')?.value || '',
-            key_partnerships: (profile && profile.key_partnerships) || document.getElementById('key_partnerships')?.value || '',
-            expertise_areas: (profile && profile.expertise_areas) || '',
-            past_projects: (profile && profile.past_projects) || '',
-        };
-
         aiBtn.classList.add('generating');
         aiBtn.disabled = true;
         aiBtn.innerHTML = '<span class="spinner"></span> Generating your application...';
-        showAiStatus('🤖 AI is writing your application based on the opportunity description and your profile. This takes 1-3 minutes on CPU...', 'info');
+        showAiStatus('🤖 AI is writing your application based on the opportunity description and your profile.', 'info');
 
         try {
-            const resp = await fetch(`${API_BASE}/generate-application`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    opportunity: selectedOpportunity,
-                    project_info: projectInfo,
-                }),
-            });
+            const data = await window.WebLLMHelper.aiAutofillApplication(selectedOpportunity, profile || {});
 
-            if (!resp.ok) {
-                const err = await resp.json();
-                throw new Error(err.error || `Server error ${resp.status}`);
+            if (data.status !== 'success' || !data.fields) {
+                throw new Error(data.error || 'No fields in AI response');
             }
 
-            const data = await resp.json();
-console.log('[DEBUG] AI response data:', data);
+            populateApplicationForm(data.fields);
 
-            if (data.status === 'success') {
-                populateApplicationForm(data.fields);
-
-                // Pre-fill contact info from profile
-                if (profile) {
-                    const fieldMap = {
-                        organization_name: 'organization_name',
-                        contact_name: 'contact_person',
-                        contact_person: 'contact_person',
-                        email: 'email',
-                        phone: 'phone',
-                        address: 'address',
-                    };
-                    for (const [profileKey, fieldId] of Object.entries(fieldMap)) {
-                        const val = profile[profileKey];
-                        if (val) {
-                            const el = document.getElementById(fieldId);
-                            if (el && !el.value) el.value = val;
-                        }
+            // Pre-fill contact info from profile
+            if (profile) {
+                const fieldMap = {
+                    organization_name: 'organization_name',
+                    contact_name: 'contact_person',
+                    contact_person: 'contact_person',
+                    email: 'email',
+                    phone: 'phone',
+                    address: 'address',
+                };
+                for (const [profileKey, fieldId] of Object.entries(fieldMap)) {
+                    const val = profile[profileKey];
+                    if (val) {
+                        const el = document.getElementById(fieldId);
+                        if (el && !el.value) el.value = val;
                     }
                 }
-
-                // Fill budget from profile if AI left it blank
-                if (profile && profile.target_budget) {
-                    const budgetEl = document.getElementById('budget');
-                    if (budgetEl && !budgetEl.value) {
-                        budgetEl.value = profile.target_budget;
-                    }
-                }
-
-                showAiStatus('✅ Application auto-filled with AI! Review each field below and edit as needed before submitting.', 'success');
-                aiBtn.classList.remove('generating');
-                aiBtn.disabled = false;
-                aiBtn.textContent = '🤖 Regenerate with AI';
-            } else {
-                throw new Error(data.error || 'Unknown error');
             }
+
+            // Fill budget from profile if AI left it blank
+            if (profile && profile.target_budget) {
+                const budgetEl = document.getElementById('budget');
+                if (budgetEl && !budgetEl.value) {
+                    budgetEl.value = profile.target_budget;
+                }
+            }
+
+            showAiStatus('✅ Application auto-filled with AI! Review each field below and edit as needed before submitting.', 'success');
+            aiBtn.classList.remove('generating');
+            aiBtn.disabled = false;
+            aiBtn.textContent = '🤖 Regenerate with AI';
         } catch (error) {
             console.error('AI autofill failed:', error);
             showAiStatus('❌ AI generation failed: ' + error.message + '. You can fill in the fields manually below.', 'error');
@@ -453,7 +533,7 @@ console.log('[DEBUG] AI response data:', data);
         el.textContent = message;
     }
 
-    // ── AI Generate (legacy project info step) ──
+    // ── AI Generate (project info step) — WebLLM browser-only ──
 
     async function aiGenerateApplication(e) {
         e.preventDefault();
@@ -463,52 +543,60 @@ console.log('[DEBUG] AI response data:', data);
             return;
         }
 
-        const projectInfo = {
-            organization_name: document.getElementById('org_name').value,
-            organization_type: document.getElementById('org_type').value,
-            organization_mission: document.getElementById('org_mission').value,
-            project_description: document.getElementById('project_description').value,
-            target_budget: document.getElementById('target_budget').value,
-            project_duration: document.getElementById('project_duration').value,
-            target_population: document.getElementById('target_population').value,
-            key_partnerships: document.getElementById('key_partnerships').value,
+        if (!window.WebLLMHelper || !window.WebLLMHelper.isReady()) {
+            alert('WebLLM is still loading. Please wait a moment and try again.');
+            return;
+        }
+
+        // Collect form data from the project info step
+        const formData = {
+            organization_name:     document.getElementById('org_name').value,
+            organization_type:     document.getElementById('org_type').value,
+            organization_mission:  document.getElementById('org_mission').value,
+            project_description:   document.getElementById('project_description').value,
+            target_budget:         document.getElementById('target_budget').value,
+            project_duration:      document.getElementById('project_duration').value,
+            target_population:     document.getElementById('target_population').value,
+            key_partnerships:      document.getElementById('key_partnerships').value,
         };
 
-        if (!projectInfo.project_description) {
+        if (!formData.project_description) {
             alert('Please describe your project.');
             return;
         }
+
+        // Merge form inputs with saved profile — form fields take priority,
+        // saved profile fills in extras (expertise_areas, past_projects, etc.)
+        const savedProfile = loadProfile() || {};
+        const combinedProfile = {
+            ...savedProfile,
+            organization_name:   formData.organization_name   || savedProfile.organization_name   || '',
+            organization_type:   formData.organization_type   || savedProfile.organization_type   || 'nonprofit',
+            organization_mission:formData.organization_mission|| savedProfile.organization_mission || '',
+            project_description: formData.project_description  || savedProfile.project_description  || '',
+            target_budget:       formData.target_budget        || savedProfile.target_budget        || '',
+            project_duration:    formData.project_duration     || savedProfile.project_duration     || '',
+            target_population:   formData.target_population    || savedProfile.target_population    || '',
+            key_partnerships:    formData.key_partnerships     || savedProfile.key_partnerships     || '',
+            expertise_areas:     savedProfile.expertise_areas  || '',
+            past_projects:       savedProfile.past_projects    || '',
+        };
 
         // Show loading
         projectInfoSection.classList.add('hidden');
         aiGenerating.classList.add('visible');
 
         try {
-            const resp = await fetch(`${API_BASE}/generate-application`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    opportunity: selectedOpportunity,
-                    project_info: projectInfo,
-                }),
-            });
+            const data = await window.WebLLMHelper.aiAutofillApplication(selectedOpportunity, combinedProfile);
 
-            if (!resp.ok) {
-                const err = await resp.json();
-                throw new Error(err.error || `Server error ${resp.status}`);
+            if (data.status !== 'success' || !data.fields) {
+                throw new Error(data.error || 'No fields in AI response');
             }
 
-            const data = await resp.json();
-console.log('[DEBUG] AI response data:', data);
-
-            if (data.status === 'success') {
-                populateApplicationForm(data.fields);
-                populateContactFieldsFromProfile(projectInfo);
-                aiGenerating.classList.remove('visible');
-                applicationForm.classList.remove('hidden');
-            } else {
-                throw new Error(data.error || 'Unknown error');
-            }
+            populateApplicationForm(data.fields);
+            populateContactFieldsFromProfile(combinedProfile);
+            aiGenerating.classList.remove('visible');
+            applicationForm.classList.remove('hidden');
         } catch (error) {
             console.error('AI generation failed:', error);
             aiGenerating.classList.remove('visible');
