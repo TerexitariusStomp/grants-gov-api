@@ -850,6 +850,72 @@ main {
 /* Utility */
 .hidden { display: none !important; }
 
+/* WebLLM Progress Bar */
+.webllm-progress-bar {
+    display: none;
+    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    border-bottom: 2px solid #2563eb;
+    padding: 0;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+.webllm-progress-bar.active {
+    display: block;
+}
+.webllm-progress-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 20px;
+    max-width: 800px;
+    margin: 0 auto;
+}
+.webllm-icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+.webllm-progress-text {
+    flex: 1;
+    min-width: 0;
+}
+#webllm-status-text {
+    color: #fff;
+    font-size: 0.875rem;
+    font-weight: 600;
+    display: block;
+}
+#webllm-status-detail {
+    color: #94a3b8;
+    font-size: 0.75rem;
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.webllm-progress-track {
+    width: 120px;
+    height: 8px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 4px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+.webllm-progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #2563eb, #3b82f6);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+.webllm-progress-pct {
+    color: #94a3b8;
+    font-size: 0.75rem;
+    font-weight: 600;
+    min-width: 35px;
+    text-align: right;
+    flex-shrink: 0;
+}
+
 /* Print styles */
 @media print {
     header, .opportunity-actions, .modal-body, .pagination { display: none !important; }

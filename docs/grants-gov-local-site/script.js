@@ -40,12 +40,64 @@ document.addEventListener('DOMContentLoaded', function() {
     const aiAutofillBtn = document.getElementById('ai-autofill-btn');
     if (aiAutofillBtn) {
         aiAutofillBtn.addEventListener('click', () => {
-            if (window.WebLLMHelper) {
+            if (window.WebLLMHelper && window.WebLLMHelper.isReady()) {
                 window.aiAutofillApplication();
+            } else if (window.WebLLMHelper && window.WebLLMHelper.isLoading()) {
+                showWebLLMProgress();
             } else {
-                alert('WebLLM not loaded. Please refresh and wait for AI model to load.');
+                // Try to init and show progress
+                showWebLLMProgress();
+                if (window.WebLLMHelper) {
+                    window.WebLLMHelper.init();
+                }
             }
         });
+    }
+
+    // WebLLM progress bar
+    function showWebLLMProgress() {
+        const bar = document.getElementById('webllm-progress-bar');
+        if (bar) bar.classList.add('active');
+    }
+
+    function hideWebLLMProgress() {
+        const bar = document.getElementById('webllm-progress-bar');
+        if (bar) bar.classList.remove('active');
+    }
+
+    function updateWebLLMProgress(pct, status, detail) {
+        const fill = document.getElementById('webllm-progress-fill');
+        const pctEl = document.getElementById('webllm-progress-pct');
+        const statusEl = document.getElementById('webllm-status-text');
+        const detailEl = document.getElementById('webllm-status-detail');
+        if (fill) fill.style.width = pct + '%';
+        if (pctEl) pctEl.textContent = Math.round(pct) + '%';
+        if (statusEl) statusEl.textContent = status || 'Loading AI model...';
+        if (detailEl) detailEl.textContent = detail || '';
+    }
+
+    // Hook into WebLLM init progress
+    if (window.WebLLMHelper) {
+        window.WebLLMHelper.onProgress(function(report) {
+            showWebLLMProgress();
+            var pct = 0;
+            if (report.progress !== undefined) {
+                pct = report.progress * 100;
+            } else if (report.percent !== undefined) {
+                pct = report.percent;
+            }
+            var status = report.status || report.text || 'Loading...';
+            var detail = '';
+            if (report.download) detail = 'Downloading: ' + report.download;
+            if (report.file) detail = report.file;
+            updateWebLLMProgress(pct, status, detail);
+            if (pct >= 100 || report.done) {
+                setTimeout(function() { hideWebLLMProgress(); }, 1500);
+                updateWebLLMProgress(100, 'AI model ready!', '');
+            }
+        });
+        // Auto-start loading WebLLM in background
+        window.WebLLMHelper.init();
     }
 
     // AI Sort button click handler
