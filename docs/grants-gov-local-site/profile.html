@@ -4,10 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Profile — Grants.gov Opportunity Finder</title>
-    <link rel="stylesheet" href="/style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=4">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400,600,700&display=swap" rel="stylesheet">
 </head>
 <body>
+    <!-- WebLLM Loading Progress Bar -->
+    <div id="webllm-progress-bar" class="webllm-progress-bar">
+        <div class="webllm-progress-content">
+            <span class="webllm-icon">🤖</span>
+            <div class="webllm-progress-text">
+                <span id="webllm-status-text">Loading AI model...</span>
+                <span id="webllm-status-detail"></span>
+            </div>
+            <div class="webllm-progress-track">
+                <div id="webllm-progress-fill" class="webllm-progress-fill"></div>
+            </div>
+            <span id="webllm-progress-pct" class="webllm-progress-pct">0%</span>
+        </div>
+    </div>
+
     <header>
         <div class="header-content">
             <div>
@@ -180,5 +195,6 @@
     </footer>
 
     <script src="/script-profile.js"></script>
+    <script type="module" src="/ai-sorter.js"></script>
 </body>
 </html>
