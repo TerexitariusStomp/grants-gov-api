@@ -135,3 +135,6 @@ The API can be deployed using:
 ## License
 
 MIT
+## Merged Repositories
+
+This repository now includes the static GitHub Pages site from `grants-gov-local-site` under `docs/grants-gov-local-site/`.
