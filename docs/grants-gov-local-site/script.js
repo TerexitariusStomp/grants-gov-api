@@ -82,13 +82,13 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const data = await response.json();
 
-            opportunities = data.results || data;
-            totalOpportunities = data.count || (data.results || []).length;
+            opportunities = data.results || data.opportunities || data.oppHits || data || [];
+            totalOpportunities = data.count || data.hitCount || data.total || opportunities.length;
 
             const sortBy = sortBySelect.value;
             opportunities.sort((a, b) => {
-                if (sortBy === 'close_date_asc') return new Date(a.close_date) - new Date(b.close_date);
-                if (sortBy === 'close_date_desc') return new Date(b.close_date) - new Date(a.close_date);
+                if (sortBy === 'close_date_asc') return new Date(a.close_date || a.closeDate) - new Date(b.close_date || b.closeDate);
+                if (sortBy === 'close_date_desc') return new Date(b.close_date || b.closeDate) - new Date(a.close_date || a.closeDate);
                 return 0;
             });
 
@@ -97,7 +97,7 @@ document.addEventListener('DOMContentLoaded', function() {
             updateResultsCount();
         } catch (error) {
             console.error('Error fetching opportunities:', error);
-            opportunitiesList.innerHTML = `<div class="error">Error fetching opportunities.</div>`;
+            opportunitiesList.innerHTML = `<div class="error">Error fetching opportunities: ${error.message}. Please try again.</div>`;
         }
     }
 
@@ -181,8 +181,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="opportunity-meta">
                     <div class="meta-item">🏛️ ${escapeHtml(o.agency)}</div>
                     <div class="meta-item">📁 ${escapeHtml(o.category || 'General')}</div>
-                    <div class="meta-item">📅 Closes: ${formatDate(o.close_date)}</div>
-                    <div class="meta-item">💰 Ceiling: ${escapeHtml(o.award_ceiling || 'Not specified')}</div>
+                    <div class="meta-item">📅 Closes: ${formatDate(o.close_date || o.closeDate)}</div>
+                    <div class="meta-item">💰 Ceiling: ${escapeHtml(o.award_ceiling || o.awardCeiling || 'Not specified')}</div>
                 </div>
                 <p class="opportunity-description">${escapeHtml(truncateText(o.description || 'No description available', 200))}</p>
                 <div class="opportunity-actions">
@@ -204,14 +204,14 @@ document.addEventListener('DOMContentLoaded', function() {
             opportunitiesList.innerHTML = `<div class="no-opportunities"><h3>No opportunities found</h3><p>Try adjusting your search</p></div>`;
             return;
         }
-        opportunitiesList.innerHTML = opportunities.map(o => `
+            opportunitiesList.innerHTML = opportunities.map(o => `
             <div class="opportunity-card" data-id="${o.opportunity_number || o.id}">
                 <h3 class="opportunity-title">${escapeHtml(o.title)}</h3>
                 <div class="opportunity-meta">
                     <div class="meta-item">🏛️ ${escapeHtml(o.agency)}</div>
                     <div class="meta-item">📁 ${escapeHtml(o.category || 'General')}</div>
-                    <div class="meta-item">📅 Closes: ${formatDate(o.close_date)}</div>
-                    <div class="meta-item">💰 Ceiling: ${escapeHtml(o.award_ceiling || 'Not specified')}</div>
+                    <div class="meta-item">📅 Closes: ${formatDate(o.close_date || o.closeDate)}</div>
+                    <div class="meta-item">💰 Ceiling: ${escapeHtml(o.award_ceiling || o.awardCeiling || 'Not specified')}</div>
                 </div>
                 <p class="opportunity-description">${escapeHtml(truncateText(o.description || 'No description available', 200))}</p>
                 <div class="opportunity-actions">
@@ -432,8 +432,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="meta-item"><strong>Agency:</strong> ${escapeHtml(opp.agency)}</div>
                 <div class="meta-item"><strong>Category:</strong> ${escapeHtml(opp.category || 'General')}</div>
                 <div class="meta-item"><strong>Number:</strong> ${escapeHtml(opp.opportunity_number)}</div>
-                <div class="meta-item"><strong>Closes:</strong> ${formatDate(opp.close_date)}</div>
-                <div class="meta-item"><strong>Ceiling:</strong> ${escapeHtml(opp.award_ceiling || 'Not specified')}</div>
+                <div class="meta-item"><strong>Closes:</strong> ${formatDate(opp.close_date || opp.closeDate)}</div>
+                <div class="meta-item"><strong>Ceiling:</strong> ${escapeHtml(opp.award_ceiling || opp.awardCeiling || 'Not specified')}</div>
                 <div class="meta-item"><strong>Status:</strong> <span class="status-badge ${opp.status}">${escapeHtml(opp.status || 'posted')}</span></div>
             </div>
         `;
@@ -761,33 +761,19 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        try {
-            const response = await fetch(`/api/v1/applications/`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ opportunity: selectedOpportunity, applicant_info: formData })
-            });
-
-            if (!response.ok) throw new Error('Failed to generate application');
-            const application = await response.json();
-            displayApplication(application);
-
-            // Copy form values into the application for display
-            application.applicant_info = formData;
-            application.project_summary = formData.project_summary;
-            application.project_narrative = formData.narrative;
-            application.goals = formData.goals;
-            application.timeline = formData.timeline;
-            application.evaluation = formData.evaluation;
-            application.sustainability = formData.sustainability;
-            application.budget_breakdown = formData.budget_breakdown;
-            application.additional_info = formData.additional_info;
-
-            displayApplication(application);
-        } catch (error) {
-            console.error('Error:', error);
-            alert('Failed to generate application. Please try again.');
-        }
+        // Client-side only — display the application preview directly
+        // (AI generation happens via WebLLM in the browser)
+        displayApplication({
+            applicant_info: formData,
+            project_summary: formData.project_summary,
+            project_narrative: formData.narrative,
+            goals_and_objectives: formData.goals,
+            project_timeline: formData.timeline,
+            evaluation_plan: formData.evaluation,
+            sustainability_plan: formData.sustainability,
+            budget_breakdown: formData.budget_breakdown,
+            additional_info: formData.additional_info,
+        });
     }
 
     function displayApplication(application) {
