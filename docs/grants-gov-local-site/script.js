@@ -39,65 +39,33 @@ document.addEventListener('DOMContentLoaded', function() {
     // AI Autofill button click handler
     const aiAutofillBtn = document.getElementById('ai-autofill-btn');
     if (aiAutofillBtn) {
-        aiAutofillBtn.addEventListener('click', () => {
-            if (window.WebLLMHelper && window.WebLLMHelper.isReady()) {
+        aiAutofillBtn.addEventListener('click', function() {
+            // Wait for WebLLMHelper to be ready (it auto-inits from ai-sorter.js module)
+            if (!window.WebLLMHelper) {
+                // Module not loaded yet, show progress and wait
+                var bar = document.getElementById('webllm-progress-bar');
+                if (bar) bar.classList.add('active');
+                var statusEl = document.getElementById('webllm-status-text');
+                if (statusEl) statusEl.textContent = 'Waiting for AI module...';
+                // Retry after a short delay
+                setTimeout(function() {
+                    if (window.WebLLMHelper) {
+                        aiAutofillBtn.click();
+                    }
+                }, 1000);
+                return;
+            }
+            if (window.WebLLMHelper.isReady()) {
                 window.aiAutofillApplication();
-            } else if (window.WebLLMHelper && window.WebLLMHelper.isLoading()) {
-                showWebLLMProgress();
+            } else if (window.WebLLMHelper.isLoading()) {
+                // Progress bar is already being updated by ai-sorter.js
+                var bar = document.getElementById('webllm-progress-bar');
+                if (bar) bar.classList.add('active');
             } else {
-                // Try to init and show progress
-                showWebLLMProgress();
-                if (window.WebLLMHelper) {
-                    window.WebLLMHelper.init();
-                }
+                // Not started yet, kick it off
+                window.WebLLMHelper.init();
             }
         });
-    }
-
-    // WebLLM progress bar
-    function showWebLLMProgress() {
-        const bar = document.getElementById('webllm-progress-bar');
-        if (bar) bar.classList.add('active');
-    }
-
-    function hideWebLLMProgress() {
-        const bar = document.getElementById('webllm-progress-bar');
-        if (bar) bar.classList.remove('active');
-    }
-
-    function updateWebLLMProgress(pct, status, detail) {
-        const fill = document.getElementById('webllm-progress-fill');
-        const pctEl = document.getElementById('webllm-progress-pct');
-        const statusEl = document.getElementById('webllm-status-text');
-        const detailEl = document.getElementById('webllm-status-detail');
-        if (fill) fill.style.width = pct + '%';
-        if (pctEl) pctEl.textContent = Math.round(pct) + '%';
-        if (statusEl) statusEl.textContent = status || 'Loading AI model...';
-        if (detailEl) detailEl.textContent = detail || '';
-    }
-
-    // Hook into WebLLM init progress
-    if (window.WebLLMHelper) {
-        window.WebLLMHelper.onProgress(function(report) {
-            showWebLLMProgress();
-            var pct = 0;
-            if (report.progress !== undefined) {
-                pct = report.progress * 100;
-            } else if (report.percent !== undefined) {
-                pct = report.percent;
-            }
-            var status = report.status || report.text || 'Loading...';
-            var detail = '';
-            if (report.download) detail = 'Downloading: ' + report.download;
-            if (report.file) detail = report.file;
-            updateWebLLMProgress(pct, status, detail);
-            if (pct >= 100 || report.done) {
-                setTimeout(function() { hideWebLLMProgress(); }, 1500);
-                updateWebLLMProgress(100, 'AI model ready!', '');
-            }
-        });
-        // Auto-start loading WebLLM in background
-        window.WebLLMHelper.init();
     }
 
     // AI Sort button click handler
@@ -236,7 +204,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="meta-item">📅 Closes: ${formatDate(o.close_date || o.closeDate)}</div>
                     <div class="meta-item">💰 Ceiling: ${escapeHtml(o.award_ceiling || o.awardCeiling || 'Not specified')}</div>
                 </div>
-                <p class="opportunity-description">${escapeHtml(truncateText(o.description || 'No description available', 200))}</p>
+                <p class="opportunity-description">${escapeHtml(o.description || 'No description available')}</p>
                 <div class="opportunity-actions">
                     <button class="view-details" data-id="${o.opportunity_number || o.id}">View Details</button>
                 </div>
@@ -265,12 +233,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="meta-item">📅 Closes: ${formatDate(o.close_date || o.closeDate)}</div>
                     <div class="meta-item">💰 Ceiling: ${escapeHtml(o.award_ceiling || o.awardCeiling || 'Not specified')}</div>
                 </div>
-                <p class="opportunity-description">${escapeHtml(truncateText(o.description || 'No description available', 200))}</p>
+                <p class="opportunity-description">${escapeHtml(o.description || 'No description available')}</p>
                 <div class="opportunity-actions">
                     <button class="view-details" data-id="${o.opportunity_number || o.id}">View Details</button>
                 </div>
             </div>
-        `).join('');
+        `}).join('');
 
         // Attach event listeners to View Details buttons
         document.querySelectorAll('.view-details').forEach(btn => {
