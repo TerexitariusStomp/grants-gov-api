@@ -1,10 +1,9 @@
-// Cloudflare Pages Function: /api/v1/opportunities/*
-// Handles both list (/) and detail (/:id) routes
+// Cloudflare Pages Function: /api/v1/opportunities
+// Proxies requests to simpler.grants.gov API with server-side API key
 
 export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
-  const pathname = url.pathname;
 
   // Handle CORS preflight
   if (request.method === 'OPTIONS') {
@@ -17,7 +16,8 @@ export async function onRequest(context) {
     });
   }
 
-  const apiKey = env.SIMPLER_GRANTS_API_KEY;
+  // Try both env var names (with and without leading space)
+  const apiKey = env.SIMPLER_GRANTS_API_KEY || env[' SIMPLER_GRANTS_API_KEY'];
   if (!apiKey) {
     return new Response(JSON.stringify({ error: 'API key not configured' }), {
       status: 500,
@@ -25,18 +25,15 @@ export async function onRequest(context) {
     });
   }
 
-  // Check if this is a detail request (path has an ID after /opportunities/)
-  const match = pathname.match(/\/api\/v1\/opportunities\/(.+)$/);
-  const opportunityId = match ? match[1] : null;
-
   try {
     let targetUrl;
-    
+    const pathname = url.pathname;
+    const match = pathname.match(/\/api\/v1\/opportunities\/(.+)$/);
+    const opportunityId = match ? match[1] : null;
+
     if (opportunityId && opportunityId !== '') {
-      // Detail endpoint
       targetUrl = 'https://simpler.grants.gov/api/v1/opportunities/' + encodeURIComponent(opportunityId);
     } else {
-      // Search/list endpoint
       targetUrl = new URL('https://simpler.grants.gov/api/v1/opportunities');
       const params = url.searchParams;
       if (params.has('query')) targetUrl.searchParams.set('query', params.get('query'));
@@ -75,7 +72,6 @@ export async function onRequest(context) {
     const data = await response.json();
 
     if (opportunityId) {
-      // Single opportunity detail
       const o = data.opportunity || data;
       const opportunity = {
         id: o.id || o.opportunityId || opportunityId,
@@ -98,7 +94,6 @@ export async function onRequest(context) {
         },
       });
     } else {
-      // Search results list
       const params = url.searchParams;
       const opportunities = (data.opportunities || data.oppHits || data.results || data || []).map(function(o) {
         return {
