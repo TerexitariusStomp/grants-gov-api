@@ -69,6 +69,13 @@ document.addEventListener('DOMContentLoaded', function() {
             body: JSON.stringify({ url: url })
         })
         .then(function(r) { return r.json(); })
+        .then(function(resp) {
+            if (resp.status !== 'scraped' || !resp.text) {
+                throw new Error(resp.error || 'Scraping failed: no text returned');
+            }
+            // AI extraction is now done client-side via WebLLM
+            return window.WebLLMHelper.scrapeWebsite(resp.url || url, resp.text);
+        })
         .then(function(data) {
             clearTimeout(timeout);
             if (data.status === 'success') {
