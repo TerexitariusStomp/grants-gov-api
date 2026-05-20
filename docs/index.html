@@ -14,15 +14,12 @@
 
   <main class="container card">
     <section>
-      <h2>API + AI Connection</h2>
+      <h2>Backend Connection</h2>
       <form id="settingsForm" class="grid">
-        <input id="grantsApiKey" type="password" placeholder="simple.grants.gov API key (X-API-Key)" />
-        <input id="aiBaseUrl" type="text" placeholder="AI base URL (e.g. http://localhost:8081/v1)" />
-        <input id="aiModel" type="text" placeholder="AI model (e.g. gemma-3-12b-it)" />
-        <input id="aiApiKey" type="password" placeholder="AI API key (optional)" />
+        <input id="backendBaseUrl" type="text" placeholder="Backend base URL (e.g. https://your-backend.example.com)" />
         <button type="submit">Save Connection</button>
       </form>
-      <p class="note">Keys are stored in your browser localStorage only.</p>
+      <p class="note">Secrets stay server-side. This page stores only backend URL.</p>
       <p id="status" class="note"></p>
     </section>
 

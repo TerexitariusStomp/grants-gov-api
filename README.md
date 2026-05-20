@@ -29,6 +29,25 @@ A comprehensive API for searching and applying for federal grant opportunities.
    uvicorn app.main:app --reload
    ```
 
+## Secure GitHub Pages + Backend Proxy Setup
+
+For GitHub Pages (static frontend), keep API keys server-side in `flask_frontend.py` env vars.
+
+Backend env vars:
+```env
+SIMPLER_GRANTS_API_KEY=...
+AI_BASE_URL=https://your-ai-endpoint.example.com/v1
+AI_MODEL=gemma-3-12b-it
+AI_API_KEY=...
+ALLOWED_ORIGIN=https://terexitariusstomp.github.io
+```
+
+Browser flow:
+- GitHub Pages frontend stores only `backendBaseUrl`
+- Frontend calls backend `/api/v1/opportunities/` and `/api/v1/ai-summary`
+- Backend injects secrets from env and calls simpler.grants.gov + AI upstream
+
+
 ## API Endpoints
 
 ### Opportunities

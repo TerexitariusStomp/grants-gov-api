@@ -1,4 +1,4 @@
-const STORAGE_KEY = 'grants_gov_local_config_v1';
+const STORAGE_KEY = 'grants_gov_local_config_v2';
 let lastResults = [];
 
 function loadConfig() {
@@ -16,7 +16,12 @@ function saveConfig(cfg) {
 function setStatus(msg, isError = false) {
   const el = document.getElementById('status');
   el.textContent = msg;
-  el.style.color = isError ? '#b00020' : '#2d6a4f';
+  el.style.color = isError ? '#ff7b7b' : '#73d13d';
+}
+
+function getBackendBaseUrl() {
+  const cfg = loadConfig();
+  return (cfg.backendBaseUrl || '').replace(/\/$/, '');
 }
 
 function escapeHtml(str = '') {
@@ -45,96 +50,59 @@ function renderResults(items) {
 }
 
 async function searchOpportunities(keyword, agency) {
-  const cfg = loadConfig();
-  if (!cfg.grantsApiKey) {
-    throw new Error('Missing simple.grants.gov API key. Save it first.');
+  const base = getBackendBaseUrl();
+  if (!base) {
+    throw new Error('Missing backend URL. Save it first.');
   }
 
-  const payload = {
-    query: keyword || '',
-    filters: {
-      opportunity_status: { one_of: ['posted', 'forecasted'] }
-    },
-    pagination: {
-      page_offset: 1,
-      page_size: 10,
-      sort_order: [{ order_by: 'relevancy', sort_direction: 'descending' }]
-    }
-  };
+  const url = new URL(`${base}/api/v1/opportunities/`);
+  if (keyword) url.searchParams.set('query', keyword);
+  if (agency) url.searchParams.set('agency', agency);
+  url.searchParams.set('limit', '10');
+  url.searchParams.set('page', '1');
 
-  if (agency) {
-    payload.filters.agency = { one_of: [agency] };
-  }
-
-  const resp = await fetch('https://api.simpler.grants.gov/v1/opportunities/search', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-API-Key': cfg.grantsApiKey
-    },
-    body: JSON.stringify(payload)
-  });
-
+  const resp = await fetch(url.toString());
   if (!resp.ok) {
     const body = await resp.text();
-    throw new Error(`API error ${resp.status}: ${body.slice(0, 200)}`);
+    throw new Error(`Backend error ${resp.status}: ${body.slice(0, 200)}`);
   }
 
   const data = await resp.json();
-  return data.data || [];
+  return data.results || [];
 }
 
 async function generateAiSummary(opportunity) {
-  const cfg = loadConfig();
-  if (!cfg.aiBaseUrl || !cfg.aiModel) {
-    throw new Error('Missing AI base URL or model. Save connection first.');
+  const base = getBackendBaseUrl();
+  if (!base) {
+    throw new Error('Missing backend URL. Save it first.');
   }
 
-  const prompt = `Write a concise first-draft grant concept note (max 250 words) for this opportunity. Include: objective, target beneficiaries, 3 key activities, and expected outcomes.\n\nOpportunity title: ${opportunity.opportunity_title || opportunity.title || ''}\nAgency: ${opportunity.agency_name || opportunity.agency || ''}\nOpportunity number: ${opportunity.opportunity_number || ''}`;
-
-  const headers = { 'Content-Type': 'application/json' };
-  if (cfg.aiApiKey) headers.Authorization = `Bearer ${cfg.aiApiKey}`;
-
-  const base = cfg.aiBaseUrl.replace(/\/$/, '');
-  const resp = await fetch(`${base}/chat/completions`, {
+  const resp = await fetch(`${base}/api/v1/ai-summary`, {
     method: 'POST',
-    headers,
-    body: JSON.stringify({
-      model: cfg.aiModel,
-      messages: [
-        { role: 'system', content: 'You are an expert grant writing assistant.' },
-        { role: 'user', content: prompt }
-      ],
-      temperature: 0.3
-    })
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ opportunity })
   });
 
   if (!resp.ok) {
     const body = await resp.text();
-    throw new Error(`AI error ${resp.status}: ${body.slice(0, 300)}`);
+    throw new Error(`AI proxy error ${resp.status}: ${body.slice(0, 300)}`);
   }
 
   const data = await resp.json();
-  return data?.choices?.[0]?.message?.content || 'No content returned.';
+  return data.summary || 'No content returned.';
 }
 
 function initSettingsForm() {
   const cfg = loadConfig();
-  document.getElementById('grantsApiKey').value = cfg.grantsApiKey || '';
-  document.getElementById('aiBaseUrl').value = cfg.aiBaseUrl || 'http://localhost:8081/v1';
-  document.getElementById('aiModel').value = cfg.aiModel || 'gemma-3-12b-it';
-  document.getElementById('aiApiKey').value = cfg.aiApiKey || '';
+  document.getElementById('backendBaseUrl').value = cfg.backendBaseUrl || '';
 
   document.getElementById('settingsForm').addEventListener('submit', (e) => {
     e.preventDefault();
     const nextCfg = {
-      grantsApiKey: document.getElementById('grantsApiKey').value.trim(),
-      aiBaseUrl: document.getElementById('aiBaseUrl').value.trim(),
-      aiModel: document.getElementById('aiModel').value.trim(),
-      aiApiKey: document.getElementById('aiApiKey').value.trim()
+      backendBaseUrl: document.getElementById('backendBaseUrl').value.trim()
     };
     saveConfig(nextCfg);
-    setStatus('Connection settings saved.');
+    setStatus('Backend URL saved.');
   });
 }
 

@@ -14,6 +14,13 @@ STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'frontend'
 
 app = Flask(__name__, static_folder=STATIC_DIR)
 
+@app.after_request
+def _add_cors_headers(resp):
+    resp.headers["Access-Control-Allow-Origin"] = ALLOWED_ORIGIN
+    resp.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
+    resp.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization"
+    return resp
+
 # ---------------------------------------------------------------------------
 # Frontend static files
 # ---------------------------------------------------------------------------
@@ -43,7 +50,11 @@ def frontend_files(path):
 # ---------------------------------------------------------------------------
 
 API_BASE = "https://api.simpler.grants.gov/v1"
-API_KEY = "jr6rG9s3nnWpVGDVJjIqS9BPR"
+API_KEY = os.environ.get("SIMPLER_GRANTS_API_KEY", "")
+ALLOWED_ORIGIN = os.environ.get("ALLOWED_ORIGIN", "https://terexitariusstomp.github.io")
+AI_BASE_URL = os.environ.get("AI_BASE_URL", "http://localhost:8081/v1")
+AI_MODEL = os.environ.get("AI_MODEL", "gemma-3-12b-it")
+AI_API_KEY = os.environ.get("AI_API_KEY", "")
 
 def _api_headers() -> dict:
     """Build request headers -- include X-API-Key only when configured."""
@@ -113,7 +124,7 @@ def _search(query="", category="", agency="", limit=50, offset=1, statuses=None)
 
     resp = _http.post(
         f"{API_BASE}/opportunities/search",
-        headers={"X-API-Key": API_KEY, "Content-Type": "application/json"},
+        headers=_api_headers(),
         json=payload,
         timeout=30,
     )
@@ -176,7 +187,7 @@ def _get_detail(opportunity_id):
     if isinstance(opportunity_id, str) and len(opportunity_id) > 30:
         resp = _http.get(
             f"{API_BASE}/opportunities/{opportunity_id}",
-            headers={"X-API-Key": API_KEY, "Content-Type": "application/json"},
+            headers=_api_headers(),
             timeout=30,
         )
         if resp.ok:
@@ -194,7 +205,7 @@ def _get_detail(opportunity_id):
         }
         resp = _http.post(
             f"{API_BASE}/opportunities/search",
-            headers={"X-API-Key": API_KEY, "Content-Type": "application/json"},
+            headers=_api_headers(),
             json=search_payload,
             timeout=15,
         )
@@ -211,7 +222,7 @@ def _get_detail(opportunity_id):
                     if opp_id:
                         resp2 = _http.get(
                             f"{API_BASE}/opportunities/{opp_id}",
-                            headers={"X-API-Key": API_KEY, "Content-Type": "application/json"},
+                            headers=_api_headers(),
                             timeout=30,
                         )
                         print(f"[detail] detail endpoint status={resp2.status_code}")
@@ -278,6 +289,15 @@ def _format_award(award_ceiling_val):
 
 
 # ---------------------------------------------------------------------------
+# CORS preflight for API routes
+# ---------------------------------------------------------------------------
+
+@app.route('/api/v1/<path:_path>', methods=['OPTIONS'])
+def api_preflight(_path):
+    return ('', 204)
+
+
+# ---------------------------------------------------------------------------
 # Routes -- /api/v1/ (used by frontend JS)
 # ---------------------------------------------------------------------------
 
@@ -307,6 +327,51 @@ def get_opportunity(opportunity_id):
     if result:
         return result
     return jsonify({"error": f"Opportunity {opportunity_id} not found"}), 404
+
+
+@app.route('/api/v1/ai-summary', methods=['POST'])
+def ai_summary():
+    try:
+        if not AI_BASE_URL or not AI_MODEL:
+            return jsonify({"error": "AI_BASE_URL/AI_MODEL not configured"}), 500
+
+        data = request.get_json() or {}
+        opportunity = data.get("opportunity") or {}
+        prompt = (
+            "Write a concise first-draft grant concept note (max 250 words). "
+            "Include objective, target beneficiaries, 3 key activities, and expected outcomes.\n\n"
+            f"Opportunity title: {opportunity.get('opportunity_title') or opportunity.get('title') or ''}\n"
+            f"Agency: {opportunity.get('agency_name') or opportunity.get('agency') or ''}\n"
+            f"Opportunity number: {opportunity.get('opportunity_number') or ''}\n"
+            f"Description: {(opportunity.get('description') or '')[:2500]}"
+        )
+
+        headers = {"Content-Type": "application/json"}
+        if AI_API_KEY:
+            headers["Authorization"] = f"Bearer {AI_API_KEY}"
+
+        base = AI_BASE_URL.rstrip('/')
+        resp = _http.post(
+            f"{base}/chat/completions",
+            headers=headers,
+            json={
+                "model": AI_MODEL,
+                "messages": [
+                    {"role": "system", "content": "You are an expert grant writing assistant."},
+                    {"role": "user", "content": prompt},
+                ],
+                "temperature": 0.3,
+            },
+            timeout=60,
+        )
+        if not resp.ok:
+            return jsonify({"error": f"AI upstream error {resp.status_code}", "details": resp.text[:400]}), 502
+
+        payload = resp.json()
+        content = payload.get("choices", [{}])[0].get("message", {}).get("content", "")
+        return jsonify({"summary": content})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route('/api/v1/generate-application', methods=['POST'])
