@@ -1,42 +1,315 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Grants.gov Local - Find and Apply</title>
-  <link rel="stylesheet" href="assets/css/styles.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grants.gov Opportunity Finder</title>
+    <link rel="stylesheet" href="style.css?v=4">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400,600,700&display=swap" rel="stylesheet">
 </head>
 <body>
-  <header class="container">
-    <h1>Grants.gov Local</h1>
-    <p>Search grant opportunities and start your application workflow.</p>
-  </header>
+    <header>
+        <div class="header-content">
+            <div>
+                <h1>🔍 Grants Opportunity Finder</h1>
+                <p class="subtitle">Search and apply for federal grant opportunities</p>
+            </div>
+            <nav class="header-nav">
+                <a href="/" class="nav-link" id="nav-search">Search</a>
+                <a href="/profile" class="nav-link" id="nav-profile">My Profile</a>
+            </nav>
+        </div>
+    </header>
 
-  <main class="container card">
-    <section>
-      <h2>Search Opportunities</h2>
-      <form id="searchForm" class="grid">
-        <input id="keyword" type="text" placeholder="Keyword (e.g. education, housing)" />
-        <input id="agency" type="text" placeholder="Agency (e.g. HUD, NIH)" />
-        <button type="submit">Search</button>
-      </form>
-      <p class="note">Demo-only UI for GitHub Pages (no backend).</p>
-    </section>
+    <main>
+        <!-- Search Page -->
+        <section id="search-page">
+            <section class="search-section">
+                <form id="search-form">
+                    <div class="search-box">
+                        <input type="text" id="query" placeholder="Search grants (e.g., 'renewable energy', 'community health')" autocomplete="off">
+                        <button type="submit" class="search-button">Search</button>
+                    </div>
+                    <div class="filters">
+                        <div class="filter-group">
+                            <label for="agency">Agency:</label>
+                            <input type="text" id="agency" placeholder="e.g., Department of Energy">
+                        </div>
+                        <div class="filter-group">
+                            <label for="category">Category:</label>
+                            <input type="text" id="category" placeholder="e.g., Energy, Health, Education">
+                        </div>
+                        <div class="filter-group">
+                            <label for="limit">Results:</label>
+                            <select id="limit">
+                                <option value="10">10</option>
+                                <option value="25">25</option>
+                                <option value="50" selected>50</option>
+                                <option value="100">100</option>
+                            </select>
+                        </div>
+                    </div>
+                </form>
+            </section>
 
-    <section>
-      <h2>Sample Opportunities</h2>
-      <ul id="results">
-        <li><strong>Community Health Support 2026</strong> — HHS — Deadline: 2026-09-30</li>
-        <li><strong>Rural Broadband Access Program</strong> — USDA — Deadline: 2026-11-15</li>
-        <li><strong>STEM Workforce Expansion</strong> — NSF — Deadline: 2026-08-12</li>
-      </ul>
-    </section>
-  </main>
+            <section class="results-section">
+                <div class="results-header">
+                    <h2>Found <span id="results-count">0</span> opportunities</h2>
+                    <div class="sort-options">
+                        <label>Sort by:</label>
+                        <select id="sort-by">
+                            <option value="close_date_asc">Closing soon (asc)</option>
+                            <option value="close_date_desc">Closing late (desc)</option>
+                            <option value="relevance">Relevance</option>
+                        </select>
+                        <button type="button" id="ai-sort-btn" class="ai-sort-btn">
+                            🤖 AI Sort by Relevance
+                        </button>
+                        <div id="ai-sort-progress" class="ai-sort-progress hidden">
+                            <span class="spinner"></span>
+                            <span id="ai-sort-status">Loading AI model...</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="opportunities-list" class="opportunities-list"></div>
+            </section>
 
-  <footer class="container">
-    <small>Not affiliated with the official Grants.gov service. Demo website.</small>
-  </footer>
+            <section class="pagination-section">
+                <div id="pagination" class="pagination"></div>
+            </section>
+        </section>
 
-  <script src="assets/js/app.js"></script>
+        <!-- Profile Page -->
+        <section id="profile-page" class="hidden">
+            <div class="profile-container">
+                <div class="profile-header">
+                    <h2>👤 My Profile</h2>
+                    <p class="hint">Save your details once. They'll auto-fill every application.</p>
+                </div>
+
+                <div id="profile-message" class="profile-message"></div>
+
+                <form id="profile-form" class="profile-form">
+                    <fieldset>
+                        <legend>Organization Information</legend>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="prof_org_name">Organization Name *</label>
+                                <input type="text" id="prof_org_name" placeholder="Your legal organization name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="prof_org_type">Organization Type *</label>
+                                <select id="prof_org_type">
+                                    <option value="nonprofit">Non-Profit 501(c)(3)</option>
+                                    <option value="tribal">Tribal Government</option>
+                                    <option value="local">Local Government</option>
+                                    <option value="state">State Government</option>
+                                    <option value="university">University/College</option>
+                                    <option value="small_business">Small Business</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="prof_duns">D-U-N-S Number</label>
+                                <input type="text" id="prof_duns" placeholder="9-digit DUNS number">
+                            </div>
+                            <div class="form-group">
+                                <label for="prof_ein">EIN / Tax ID</label>
+                                <input type="text" id="prof_ein" placeholder="XX-XXXXXXX">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="prof_org_mission">Organization Mission &amp; History</label>
+                            <textarea id="prof_org_mission" rows="4" placeholder="What does your organization do? When was it founded? What's your track record?"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="prof_expertise">Areas of Expertise</label>
+                            <textarea id="prof_expertise" rows="2" placeholder="What types of projects or services does your organization specialize in?"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="prof_past_projects">Past Relevant Projects</label>
+                            <textarea id="prof_past_projects" rows="3" placeholder="List 2-3 past projects, grants received, or accomplishments that would strengthen future applications."></textarea>
+                        </div>
+                    </fieldset>
+
+                    <fieldset>
+                        <legend>Contact Information</legend>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="prof_contact">Primary Contact Person *</label>
+                                <input type="text" id="prof_contact" placeholder="Full name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="prof_title">Title</label>
+                                <input type="text" id="prof_title" placeholder="e.g., Executive Director">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="prof_email">Email *</label>
+                                <input type="email" id="prof_email" placeholder="contact@organization.org" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="prof_phone">Phone *</label>
+                                <input type="tel" id="prof_phone" placeholder="(555) 123-4567" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="prof_address">Organization Address</label>
+                            <textarea id="prof_address" rows="2" placeholder="Street address, city, state, ZIP"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="prof_website">Organization Website</label>
+                            <input type="url" id="prof_website" placeholder="https://www.organization.org">
+                        </div>
+                    </fieldset>
+
+                    <fieldset>
+                        <legend>Default Project Information</legend>
+                        <div class="form-group">
+                            <label for="prof_project_desc">Project Description / Focus</label>
+                            <textarea id="prof_project_desc" rows="4" placeholder="Describe your typical project: what problems you solve, your approach, who benefits. This will be used by AI to auto-generate applications."></textarea>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="prof_budget">Typical Budget Range ($)</label>
+                                <input type="number" id="prof_budget" step="1000" placeholder="e.g., 500000">
+                            </div>
+                            <div class="form-group">
+                                <label for="prof_duration">Typical Project Duration</label>
+                                <input type="text" id="prof_duration" placeholder="e.g., 2 years">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="prof_population">Target Population / Beneficiaries</label>
+                            <textarea id="prof_population" rows="2" placeholder="Who does your work serve? (communities, demographics, geographic areas)"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="prof_partnerships">Key Partnerships &amp; Collaborators</label>
+                            <textarea id="prof_partnerships" rows="2" placeholder="Regular partners, collaborators, or stakeholders you work with"></textarea>
+                        </div>
+                    </fieldset>
+
+                    <div class="form-actions">
+                        <button type="submit" class="save-profile-button">💾 Save Profile</button>
+                        <button type="button" class="cancel-button" onclick="window.location.href='/'">← Back to Search</button>
+                    </div>
+                </form>
+            </div>
+        </section>
+    </main>
+
+    <!-- Application Modal -->
+    <div id="application-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Apply for Opportunity</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="opportunity-details" class="opportunity-details">
+                    <!-- Opportunity info -->
+                </div>
+                <div id="opportunity-full-description" class="opportunity-description-full" style="display: block !important;">
+                    <h4>Description</h4>
+                    <div id="opportunity-description-text"></div>
+                </div>
+
+                <button type="button" id="ai-autofill-btn" class="ai-autofill-btn" onclick="window.aiAutofillApplication()">🤖 Autofill with AI</button>
+                <div id="ai-autofill-status" class="ai-autofill-status" style="display:none;"></div>
+
+                <!-- Step 2: Application Form (top) -->
+                <form id="application-form" class="application-form hidden">
+                    <h3>Step 1: Review & Edit Application</h3>
+                    <p class="hint">Click "Autofill with AI" above to generate your application from your profile, or fill in manually.</p>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="organization_name">Organization Name</label>
+                            <input type="text" id="organization_name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="contact_person">Contact Person</label>
+                            <input type="text" id="contact_person" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="email">Email</label>
+                            <input type="email" id="email" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="phone">Phone</label>
+                            <input type="tel" id="phone">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="address">Address</label>
+                        <textarea id="address" rows="2"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="project_summary">Project Summary</label>
+                        <textarea id="project_summary" rows="4" placeholder="Briefly describe your project" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="budget">Total Project Budget ($)</label>
+                        <input type="number" id="budget" step="1000" placeholder="e.g., 500000">
+                    </div>
+                    <div class="form-group">
+                        <label for="narrative">Project Narrative</label>
+                        <textarea id="narrative" rows="10" placeholder="Detailed description of the problem, solution, methodology, and expected outcomes" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="goals">Goals and Objectives</label>
+                        <textarea id="goals" rows="6" placeholder="List specific, measurable goals"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="timeline">Project Timeline</label>
+                        <textarea id="timeline" rows="4" placeholder="Key milestones and deliverables"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="evaluation">Evaluation Plan</label>
+                        <textarea id="evaluation" rows="4" placeholder="How will you measure success?"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="sustainability">Sustainability Plan</label>
+                        <textarea id="sustainability" rows="3" placeholder="How will the project continue after funding?"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="budget_breakdown">Budget Breakdown</label>
+                        <textarea id="budget_breakdown" rows="5" placeholder="Personnel, equipment, travel, supplies, etc."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="additional_info">Additional Information</label>
+                        <textarea id="additional_info" rows="3" placeholder="Any other relevant information"></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="generate-button">Submit Application</button>
+                        <button type="button" class="ai-generate-trigger-inline" onclick="showProjectInfoForAI()">🤖 Regenerate with AI</button>
+                        <button type="button" class="cancel-button close-modal">Cancel</button>
+                    </div>
+                </form>
+                <div id="application-preview" class="application-preview hidden">
+                    <div class="application-header">
+                        <h2>Generated Application</h2>
+                        <button class="close-preview close-modal">&times;</button>
+                    </div>
+                    <div id="application-content" class="application-content"></div>
+                    <div class="preview-actions">
+                        <button class="download-pdf">Download as PDF</button>
+                        <button class="edit-application close-preview">Edit Application</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>Grants.gov API • Powered by Temple Earth</p>
+    </footer>
+
+    <script src="script.js?v=2"></script>
+    <script type="module" src="ai-sorter.js"></script>
 </body>
 </html>
