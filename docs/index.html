@@ -14,22 +14,36 @@
 
   <main class="container card">
     <section>
+      <h2>API + AI Connection</h2>
+      <form id="settingsForm" class="grid">
+        <input id="grantsApiKey" type="password" placeholder="simple.grants.gov API key (X-API-Key)" />
+        <input id="aiBaseUrl" type="text" placeholder="AI base URL (e.g. http://localhost:8081/v1)" />
+        <input id="aiModel" type="text" placeholder="AI model (e.g. gemma-3-12b-it)" />
+        <input id="aiApiKey" type="password" placeholder="AI API key (optional)" />
+        <button type="submit">Save Connection</button>
+      </form>
+      <p class="note">Keys are stored in your browser localStorage only.</p>
+      <p id="status" class="note"></p>
+    </section>
+
+    <section>
       <h2>Search Opportunities</h2>
       <form id="searchForm" class="grid">
         <input id="keyword" type="text" placeholder="Keyword (e.g. education, housing)" />
         <input id="agency" type="text" placeholder="Agency (e.g. HUD, NIH)" />
         <button type="submit">Search</button>
       </form>
-      <p class="note">Demo-only UI for GitHub Pages (no backend).</p>
     </section>
 
     <section>
-      <h2>Sample Opportunities</h2>
-      <ul id="results">
-        <li><strong>Community Health Support 2026</strong> — HHS — Deadline: 2026-09-30</li>
-        <li><strong>Rural Broadband Access Program</strong> — USDA — Deadline: 2026-11-15</li>
-        <li><strong>STEM Workforce Expansion</strong> — NSF — Deadline: 2026-08-12</li>
-      </ul>
+      <h2>Results</h2>
+      <ul id="results"></ul>
+    </section>
+
+    <section>
+      <h2>AI Draft</h2>
+      <button id="aiDraftBtn" type="button">Generate AI Summary for Top Result</button>
+      <pre id="aiOutput"></pre>
     </section>
   </main>
 
