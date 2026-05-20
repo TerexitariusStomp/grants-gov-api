@@ -133,9 +133,16 @@ document.addEventListener('DOMContentLoaded', function() {
             // Sort with WebLLM
             const sorted = await window.WebLLMHelper.aiSortGrants(opportunities, userProfile);
             
-            // Update opportunities with scores
-            opportunities = sorted;
-            
+            // Merge AI scores back into the opportunity objects (preserve full grant data)
+            const scoreMap = new Map(
+                sorted.map(item => [item.opportunity_number, item])
+            );
+            opportunities = opportunities.map(o => ({
+                ...o,
+                ai_score:  scoreMap.get(o.opportunity_number)?.score  ?? o.ai_score  ?? 50,
+                ai_reason: scoreMap.get(o.opportunity_number)?.reason ?? o.ai_reason ?? 'Not scored',
+            }));
+
             // Re-render with scores displayed
             renderOpportunitiesWithScores();
             
